@@ -21,8 +21,8 @@ class SRGenerator:
           print('Invalid content loss function. Must be \'mse\', \'vgg22\', or \'vgg54\'.')
           exit()
       self.content_loss = content_loss
-      self.saver = tf.train.Saver()
-      self.sess = None
+      #self.saver = tf.train.Saver()
+      #self.sess = None
 
   def _residual_block(self, x, kernel_size, filters, strides=1):
     x = tf.nn.relu(x)
@@ -115,7 +115,7 @@ class SRGenerator:
   # def test(self):
   #   return NotImplemented
 
-  def save(self, checkpoint_dir, step):
+  def save(self, sess, saver, checkpoint_dir, step):
     model_name = "SRResNet.model"
     model_dir = "%s_%s" % ("srresnet", self.label_size)
     checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
@@ -123,11 +123,11 @@ class SRGenerator:
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
 
-    self.saver.save(self.sess,
+    saver.save(self.sess,
                     os.path.join(checkpoint_dir, model_name),
                     global_step=step)
 
-  def load(self, checkpoint_dir):
+  def load(self, sess, saver, checkpoint_dir):
     print(" [*] Reading checkpoints...")
     model_dir = "%s_%s" % ("srresnet", self.label_size)
     checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
@@ -135,7 +135,7 @@ class SRGenerator:
     ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
     if ckpt and ckpt.model_checkpoint_path:
         ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
-        self.saver.restore(self.sess, os.path.join(checkpoint_dir, ckpt_name))
+        saver.restore(self.sess, os.path.join(checkpoint_dir, ckpt_name))
         return True
     else:
         return False

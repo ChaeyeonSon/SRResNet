@@ -44,11 +44,10 @@ def main():
     if not os.path.exists('./board'):
         os.makedirs('./board')
     os.environ['CUDA_VISIBLE_DEVICES'] = str(FLAGS.gpu)
-    print("Hi!")
     model = SRGenerator(training=FLAGS.is_train)
-    print("Hi?")
+    var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
+    saver = tf.train.Saver(var_list)
     if FLAGS.is_train:
-        
         train_dataset = make_dataset(True,FLAGS.batch_size)
         train_it = train_dataset.make_initializable_iterator()
 
@@ -82,14 +81,14 @@ def main():
         # tf.summary.scalar('learning_rate', Net.learning_rate)
         merged = tf.summary.merge_all()
 
-
         with tf.Session() as sess:
+
             writer = tf.summary.FileWriter('./board/graph', sess.graph)
             writer.add_graph(sess.graph)
 
             sess.run(tf.global_variables_initializer())
-            model.sess = sess # 이거 완전 악순데...
-            if model.load(FLAGS.checkpoint_dir):
+            #model.sess = sess # 이거 완전 악순데...
+            if model.load(sess, saver, FLAGS.checkpoint_dir):
                 print(" [*] Load SUCCESS")
             else:
                 print(" [!] Load failed...")
@@ -111,7 +110,7 @@ def main():
                 for i in range(10):
                     v_loss += sess.run(valid_loss)/10
                 print("Epoch: [%2d], time: [%4.4f], train_loss: [%.8f], valid_loss: [%.8f]"% ((epoch+1), time.time()-start_time, t_loss, v_loss))
-                model.save(FLAGS.checkpoint_dir, epoch)
+                model.save(sess, saver, FLAGS.checkpoint_dir, epoch)
                 summary = sess.run(merged, feed_dict={train_loss_avg: t_loss, valid_loss_avg: v_loss})
                 writer.add_summary(summary, epoch)
         
@@ -121,8 +120,8 @@ def main():
         valid_pred = model.forward(valid_x)
         valid_loss = model.loss_function(valid_y, valid_pred) 
         with tf.Session() as sess:
-            model.sess=sess
-            if model.load(FLAGS.checkpoint_dir):
+            #model.sess=sess
+            if model.load(sess, saver, FLAGS.checkpoint_dir):
                 print(" [*] Load SUCCESS")
             else:
                 print(" [!] Load failed...")
