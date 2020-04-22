@@ -26,4 +26,5 @@ def save_image(path, data, highres=False):
   data = np.clip(data * 255.0, 0.0, 255.0).astype(np.uint8)
   misc.toimage(data, cmin=0, cmax=255).save(path)
 
-def save_bicubic()
+def save_bicubic():
+  return NotImplemented

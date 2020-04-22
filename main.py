@@ -14,7 +14,7 @@ flags = tf.app.flags
 flags.DEFINE_integer("batch_size", 128, "The size of batch images [128]")
 flags.DEFINE_integer("image_size", 33, "The size of image to use [33]")
 flags.DEFINE_integer("label_size", 21, "The size of label to produce [21]")
-flags.DEFINE_integer("epochs", 1e5, "The number of epochs of learning")
+flags.DEFINE_integer("epochs", 100000, "The number of epochs of learning")
 flags.DEFINE_float("learning_rate", 1e-4, "The learning rate of gradient descent algorithm [1e-4]")
 flags.DEFINE_integer("c_dim", 1, "Dimension of image color. [1]")
 flags.DEFINE_integer("scale", 3, "The size of scale factor for preprocessing input image [3]")
@@ -35,7 +35,7 @@ def test():
     return NotImplemented
 
 def main():
-    pp.pprint(flags.FLAGS.__flags)
+    #pp.pprint(flags.FLAGS.__flags)
 
     if not os.path.exists(FLAGS.checkpoint_dir):
         os.makedirs(FLAGS.checkpoint_dir)
@@ -43,10 +43,12 @@ def main():
         os.makedirs(FLAGS.sample_dir)
     if not os.path.exists('./board'):
         os.makedirs('./board')
-    os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu 
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(FLAGS.gpu)
+    print("Hi!")
     model = SRGenerator(training=FLAGS.is_train)
-
+    print("Hi?")
     if FLAGS.is_train:
+        
         train_dataset = make_dataset(True,FLAGS.batch_size)
         train_it = train_dataset.make_initializable_iterator()
 

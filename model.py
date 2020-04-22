@@ -19,7 +19,7 @@ class SRGenerator:
       self.reuse_vgg = False
       if content_loss not in ['mse', 'vgg22', 'vgg54']:
           print('Invalid content loss function. Must be \'mse\', \'vgg22\', or \'vgg54\'.')
-      exit()
+          exit()
       self.content_loss = content_loss
       self.saver = tf.train.Saver()
       self.sess = None

@@ -13,10 +13,10 @@ from glob import glob
 # valid_img_data_list = glob('data\\mnist_png\\training\\*\\*.png')
 # valid_label_data_list = glob('data\\mnist_png\\training\\*\\*.png')
 
-train_img_data_dir = 'data\\mnist_png\\training\\*\\*.png'
-train_label_data_dir = 'data\\mnist_png\\training\\*\\*.png'
-valid_img_data_dir = 'data\\mnist_png\\training\\*\\*.png'
-valid_label_data_dir = 'data\\mnist_png\\training\\*\\*.png'
+train_img_data_dir = '..\\DIV2K_train_LR_bicubic\\*.png'
+train_label_data_dir = '..\\DIV2K_train_HR\\*.png'
+valid_img_data_dir = '..\\DIV2K_valid_LR_bicubic\\*.png'
+valid_label_data_dir = '..\\DIV2K_valid_HR\\*.png'
 
 
 def decode_img(img):
