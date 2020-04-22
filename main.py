@@ -45,8 +45,8 @@ def main():
         os.makedirs('./board')
     os.environ['CUDA_VISIBLE_DEVICES'] = str(FLAGS.gpu)
     model = SRGenerator(training=FLAGS.is_train)
-    var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
-    saver = tf.train.Saver(var_list)
+    #var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
+    #saver = tf.train.Saver(var_list)
     if FLAGS.is_train:
         train_dataset = make_dataset(True,FLAGS.batch_size)
         train_it = train_dataset.make_initializable_iterator()
@@ -63,7 +63,8 @@ def main():
 
         valid_pred = model.forward(valid_x)
         valid_loss = model.loss_function(valid_y, valid_pred) 
-
+        var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
+        saver = tf.train.Saver(var_list)
         with tf.name_scope('inputs_summary'):
             tf.summary.image('input_summary', train_x)
 
