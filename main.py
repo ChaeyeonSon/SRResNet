@@ -21,6 +21,10 @@ flags.DEFINE_integer("scale", 3, "The size of scale factor for preprocessing inp
 flags.DEFINE_integer("stride", 14, "The size of stride to apply input image [14]")
 flags.DEFINE_string("checkpoint_dir", "./checkpoint", "Name of checkpoint directory [checkpoint]")
 flags.DEFINE_string("sample_dir", "sample", "Name of sample directory [sample]")
+flags.DEFINE_string("train_img_dir", "../DIV2K_train_LR_bicubic/*.png", "Name of train img directory [train_img]")
+flags.DEFINE_string("train_label_dir", "../DIV2K_train_HR/*.png", "Name of train label directory [train_label]")
+flags.DEFINE_string("valid_img_dir", "../DIV2K_valid_LR_bicubic/*.png", "Name of valid img directory [valid_img]")
+flags.DEFINE_string("valid_label_dir", '../DIV2K_valid_HR/*.png', "Name of svalid label directory [valid_label]")
 flags.DEFINE_boolean("is_train", True, "True for training, False for testing [True]")
 flags.DEFINE_integer("gpu", 0, "Which GPU to use")
 
@@ -48,10 +52,10 @@ def main():
     #var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
     #saver = tf.train.Saver(var_list)
     if FLAGS.is_train:
-        train_dataset = make_dataset(True,FLAGS.batch_size)
+        train_dataset = make_dataset(FLAGS.train_img_dir, FLAGS.train_label_dir, train=True,batch_size=FLAGS.batch_size)
         train_it = train_dataset.make_initializable_iterator()
 
-        valid_dataset = make_dataset(False, batch_size=1) #dataset을 10개로 자르자
+        valid_dataset = make_dataset(FLAGS.valid_img_dir, FLAGS.valid_label_dir, train=False, batch_size=1) #dataset을 10개로 자르자
         valid_it = valid_dataset.make_initializable_iterator()
         
         train_x, train_y = train_it.get_next()
@@ -88,7 +92,6 @@ def main():
             writer.add_graph(sess.graph)
 
             sess.run(tf.global_variables_initializer())
-            #model.sess = sess # 이거 완전 악순데...
             if model.load(sess, saver, FLAGS.checkpoint_dir):
                 print(" [*] Load SUCCESS")
             else:
@@ -121,7 +124,6 @@ def main():
         valid_pred = model.forward(valid_x)
         valid_loss = model.loss_function(valid_y, valid_pred) 
         with tf.Session() as sess:
-            #model.sess=sess
             if model.load(sess, saver, FLAGS.checkpoint_dir):
                 print(" [*] Load SUCCESS")
             else:
@@ -129,21 +131,23 @@ def main():
             sess.run(valid_it.initializer)
             v_loss = 0.0
             count = 0
+            f = open(FLAGS.sample_dir+"/result.txt","w")
             try:
                 while True:
                     start_time = time.time()
-                    loss = sess.run(valid_loss)
+                    pred, loss = sess.run(valid_pred, valid_loss)
                     v_loss += loss
                     if count < 10:
                         save_image(FLAGS.sample_dir+"/"+str(count)+".jpg", valid_pred)
                         psnr = compute_psnr(valid_y, valid_pred)
-                        save_bicubic
+                        save_bicubic()
                     count += 1
                     f.write("Epoch: [%2d], time: [%4.4f], loss: [%.8f], psnr: [%.4f]"% ((epoch+1), time.time()-start_time, loss, psnr))
             
             except tf.errors.OutOfRangeError:
                 pass
             v_loss /= count
+            f.close()
 
 if __name__=='__main__':
     main()

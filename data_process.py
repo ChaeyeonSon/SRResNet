@@ -3,15 +3,7 @@ import numpy as np
 import os 
 import glob 
 
-# random crop
-# tf.image
-# tf.dataset
-# from generator
 
-# train_img_data_list = glob('data\\mnist_png\\training\\*\\*.png')
-# train_label_data_list = glob('data\\mnist_png\\training\\*\\*.png')
-# valid_img_data_list = glob('data\\mnist_png\\training\\*\\*.png')
-# valid_label_data_list = glob('data\\mnist_png\\training\\*\\*.png')
 
 train_img_data_dir = '../DIV2K_train_LR_bicubic/*.png'
 train_label_data_dir = '../DIV2K_train_HR/*.png'
@@ -33,7 +25,7 @@ def decode_img(img):
   return img
   
 def process_path(file_path):
-  img_file_path, label_file_path = file_path[0], file_path[1]
+  img_file_path, label_file_path = file_path
   label = tf.io.read_file(label_file_path)
   label = decode_img(label)
   # load the raw data from the file as a string
@@ -75,25 +67,15 @@ def random_crop_size96(images):
   return (tf.image.random_crop(images[0],[48,48],seed=seed),tf.image.random_crop(images[1],[96,96],seed=seed))
 
 
-def make_dataset(train=True, batch_size=128):
+def make_dataset(img_file_path, label_file_path, train=True, batch_size=128):
+  ds1 = tf.data.Dataset.list_files(img_file_path, shuffle=False)
+  ds2 = tf.data.Dataset.list_files(label_file_path, shuffle=False)
+  ds = tf.data.Dataset.zip((ds1, ds2))
+  labeled_ds = ds.map(process_path, num_parallel_calls=10)
   if train:
-    train_ds1 = tf.data.Dataset.list_files(train_img_data_dir)
-    train_ds2 = tf.data.Dataset.list_files(train_label_data_dir)
-    train_list_ds = tf.data.Dataset.zip((train_ds1,train_ds2))
-    train_labeled_ds = train_list_ds.map(process_path, num_parallel_calls=10).map(random_crop_size64)
-    train_labeled_ds = train_labeled_ds.shuffle(1000).batch(batch_size).prefetch(buffer_size=10)
+    train_labeled_ds = labeled_ds.map(random_crop_size64).shuffle(1000).batch(batch_size).prefetch(buffer_size=10)
     return train_labeled_ds
 
   else:
-    valid_list_ds = tf.data.Dataset.list_files([valid_img_data_dir, valid_label_data_dir])
-    valid_labled_ds = valid_list_ds.map(process_path, num_parallel_calls=10).batch(1).prefetch(buffer_size=10)
-    return valid_labled_ds
-
-sess = tf.Session()
-ds1 = tf.data.Dataset.list_files(train_img_data_dir, shuffle=False)
-ds2 = tf.data.Dataset.list_files(train_label_data_dir, shuffle=False)
-ds = tf.data.Dataset.zip((ds1,ds2))
-it = ds.make_one_shot_iterator()
-elem1, elem2 = it.get_next()
-while True:
-  print(sess.run([elem1, elem2]))
+    valid_labeled_ds = labeled_ds.batch(1).prefetch(buffer_size=10)
+    return valid_labeled_ds
