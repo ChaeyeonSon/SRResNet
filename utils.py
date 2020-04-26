@@ -1,5 +1,6 @@
 import tensorflow as tf 
 import numpy as np
+import imageio
 
 def conv2d(input, kernel_size=3, input_filters=64, output_filters=64, strides=1, padding='SAME'):
     tf.nn.conv2d()
@@ -18,13 +19,13 @@ def compute_psnr(ref, target):
 
     return psnr
 
-def save_image(path, data, highres=False):
+def save_image(path, data, highres=True):
   # transform from [-1, 1] to [0, 1]
   if highres:
     data = (data + 1.0) * 0.5
   # transform from [0, 1] to [0, 255], clip, and convert to uint8
   data = np.clip(data * 255.0, 0.0, 255.0).astype(np.uint8)
-  misc.toimage(data, cmin=0, cmax=255).save(path)
+  imageio.imwrite(path, data)
 
 def save_bicubic():
   return NotImplemented

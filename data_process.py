@@ -18,6 +18,10 @@ train_label_data_dir = '../DIV2K_train_HR/*.png'
 valid_img_data_dir = '../DIV2K_valid_LR_bicubic/*.png'
 valid_label_data_dir = '../DIV2K_valid_HR/*.png'
 
+train_img_data_list = glob.glob(train_img_data_dir)
+train_label_data_list = glob.glob(train_label_data_dir)
+print(train_img_data_list)
+print(train_label_data_list)
 
 def decode_img(img):
   # convert the compressed string to a 3D uint8 tensor
@@ -65,6 +69,11 @@ def random_crop_and_pad_image_and_labels(image, labels, size):
 def random_crop_size64(images):
   return random_crop_and_pad_image_and_labels(images[0],images[1], [64,64])
 # Set `num_parallel_calls` so multiple images are loaded/processed in parallel.
+seed = 0
+def random_crop_size96(images):
+  seed += 1
+  return (tf.image.random_crop(images[0],[48,48],seed=seed),tf.image.random_crop(images[1],[96,96],seed=seed))
+
 
 def make_dataset(train=True, batch_size=128):
   if train:
