@@ -11,7 +11,7 @@ import time
 
 flags = tf.app.flags
 
-flags.DEFINE_integer("batch_size", 128, "The size of batch images [128]")
+flags.DEFINE_integer("batch_size", 64, "The size of batch images [128]")
 flags.DEFINE_integer("image_size", 33, "The size of image to use [33]")
 flags.DEFINE_integer("label_size", 21, "The size of label to produce [21]")
 flags.DEFINE_integer("epochs", 100000, "The number of epochs of learning")
@@ -95,14 +95,17 @@ def main():
                 print(" [*] Load SUCCESS")
             else:
                 print(" [!] Load failed...")
-            sess.run(train_it.initializer)
+            
             for epoch in tqdm(range(FLAGS.epochs)):
                 start_time = time.time()
+                sess.run(train_it.initializer)
                 t_loss = 0.0
                 count = 0
                 try:
                     while True:
-                        _, loss = sess.run([train_op, train_loss])
+                        loss = 0
+                        _ = sess.run(train_x)
+                        #_, loss = sess.run([train_op, train_loss])
                         t_loss += loss
                         count += 1
                 except tf.errors.OutOfRangeError:

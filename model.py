@@ -53,7 +53,7 @@ class SRGenerator:
 
   def forward(self, x, is_train):
     """Builds the forward pass network graph"""
-    with tf.variable_scope('generator') as scope:
+    with tf.variable_scope('generator', reuse=tf.AUTO_REUSE) as scope:
       x = tf.layers.conv2d(x, kernel_size=9, filters=64, strides=1, padding='same')
       #x = tf.contrib.keras.layers.PReLU(shared_axes=[1,2])(x)
       skip = x
@@ -69,7 +69,7 @@ class SRGenerator:
       x = x + skip
 
       # Upsample blocks
-      for i in range(self.num_upsamples):
+      for i in range(self.num_upsamples-1):
         with tf.name_scope("Upsample_"+str(i)):
           x = self._Upsample2xBlock(x, kernel_size=3, filters=256)
       
@@ -94,25 +94,23 @@ class SRGenerator:
 
   def save(self, sess, saver, checkpoint_dir, step):
     model_name = "SRResNet.model"
-    model_dir = "%s_%s" % ("srresnet", self.label_size)
+    model_dir = "%s_%s" % ("srresnet", 1)
     checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
 
-    saver.save(self.sess,
-                    os.path.join(checkpoint_dir, model_name),
-                    global_step=step)
+    saver.save(sess, os.path.join(checkpoint_dir, model_name), global_step=step)
 
   def load(self, sess, saver, checkpoint_dir):
     print(" [*] Reading checkpoints...")
-    model_dir = "%s_%s" % ("srresnet", self.label_size)
+    model_dir = "%s_%s" % ("srresnet", 1)
     checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
     ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
     if ckpt and ckpt.model_checkpoint_path:
         ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
-        saver.restore(self.sess, os.path.join(checkpoint_dir, ckpt_name))
+        saver.restore(sess, os.path.join(checkpoint_dir, ckpt_name))
         return True
     else:
         return False

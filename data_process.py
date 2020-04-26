@@ -79,20 +79,11 @@ def make_dataset(img_file_path, label_file_path, train=True, batch_size=128):
   ds = tf.data.Dataset.zip((ds1, ds2))
   labeled_ds = ds.map(process_path, num_parallel_calls=10)
   if train:
-    train_labeled_ds = labeled_ds.map(random_crop_size64).shuffle(800).batch(batch_size).prefetch(buffer_size=10)
+    train_labeled_ds = labeled_ds.map(random_crop_size64).shuffle(800).batch(batch_size).prefetch(buffer_size=5)
     return train_labeled_ds
 
   else:
-    valid_labeled_ds = labeled_ds.batch(1).prefetch(buffer_size=10)
+    valid_labeled_ds = labeled_ds.batch(1).prefetch(buffer_size=5)
     return valid_labeled_ds
 
-'''
-with tf.Session() as sess:
-  ds = make_dataset(train_img_data_dir, train_label_data_dir)
-  it = ds.make_initializable_iterator()
-  next1, next2 = it.get_next()
-  sess.run(it.initializer)
-  while True:
-    print(np.shape(np.array(sess.run(next1))))
-'''
 
