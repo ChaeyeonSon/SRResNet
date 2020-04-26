@@ -23,21 +23,24 @@ class SRGenerator:
       self.content_loss = content_loss
       #self.saver = tf.train.Saver()
       #self.sess = None
-
+  def conv2d(self, x, kernel_size=3, input_filters=64, output_filters=64, strides=1, padding='SAME'):
+    return tf.nn.conv2d(x, filters=[kernel_size, kernel_size, input_filters,output_filters], 
+    strides=[1,strides,strides,1], padding=padding)
+  
   def _residual_block(self, x, kernel_size, filters, strides=1):
     x = tf.nn.relu(x)
     skip = x
-    x = conv2d(x, kernel_size=kernel_size, filters=filters, strides=strides, padding='SAME')
+    x = self.conv2d(x, kernel_size=kernel_size, filters=filters, strides=strides, padding='SAME')
     x = tf.layers.batch_normalization(x, training=self.training)
     x = tf.nn.relu(x)
-    x = conv2d(x, kernel_size=kernel_size, filters=filters, strides=strides, padding='SAME')
+    x = self.conv2d(x, kernel_size=kernel_size, filters=filters, strides=strides, padding='SAME')
     x = tf.layers.batch_normalization(x, training=self.training)
     x = x + skip
     return x
 
   def _Upsample2xBlock(self, x, kernel_size, filters, strides=1):
     """Upsample 2x via SubpixelConv"""
-    x = conv2d(x, kernel_size=kernel_size, input_filters=filters//4, output_filters=filters, strides=strides, padding='SAME')
+    x = self.conv2d(x, kernel_size=kernel_size, input_filters=filters//4, output_filters=filters, strides=strides, padding='SAME')
     x = tf.nn.relu(x)
     x = tf.depth_to_space(x, 2)
     return x
@@ -45,7 +48,7 @@ class SRGenerator:
   def forward(self, x):
     """Builds the forward pass network graph"""
     with tf.variable_scope('generator') as scope:
-      x = conv2d(x, kernel_size=3, input_filters=3, output_filters=64, strides=1, padding='SAME')
+      x = self.conv2d(x, kernel_size=3, input_filters=3, output_filters=64, strides=1, padding='SAME')
       #x = tf.contrib.keras.layers.PReLU(shared_axes=[1,2])(x)
       skip = x
 
@@ -55,7 +58,7 @@ class SRGenerator:
           x = self._residual_block(x, kernel_size=3, input_filters=64, output_filters=64, strides=1)
 
       x = tf.nn.relu(x)
-      x = conv2d(x, kernel_size=3, input_filters=64, output_filters=64, strides=1, padding='SAME')
+      x = self.conv2d(x, kernel_size=3, input_filters=64, output_filters=64, strides=1, padding='SAME')
       x = tf.layers.batch_normalization(x, training=self.training)
       x = x + skip
 
@@ -64,7 +67,7 @@ class SRGenerator:
         with tf.name_scope("Upsample_"+str(i)):
           x = self._Upsample2xBlock(x, kernel_size=3, filters=256)
       
-      x = conv2d(x, kernel_size=3, input_filters=64, output_filters=3, strides=1, padding='SAME', name='forward')
+      x = self.conv2d(x, kernel_size=3, input_filters=64, output_filters=3, strides=1, padding='SAME', name='forward')
       return x
   
   def loss_function(self, y, y_pred):

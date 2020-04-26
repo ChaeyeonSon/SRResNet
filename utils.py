@@ -2,10 +2,6 @@ import tensorflow as tf
 import numpy as np
 import imageio
 
-def conv2d(input, kernel_size=3, input_filters=64, output_filters=64, strides=1, padding='SAME'):
-    tf.nn.conv2d()
-    return tf.nn.conv2d(input, filters=[kernel_size, kernel_size, input_filters,output_filters], 
-    strides=[1,strides,strides,1], padding=padding)
 
 def compute_psnr(ref, target):
     ref = tf.cast(ref, tf.float32)
