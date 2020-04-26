@@ -48,7 +48,7 @@ def main():
     if not os.path.exists('./board'):
         os.makedirs('./board')
     os.environ['CUDA_VISIBLE_DEVICES'] = str(FLAGS.gpu)
-    model = SRGenerator(training=FLAGS.is_train)
+    model = SRGenerator()
     #var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
     #saver = tf.train.Saver(var_list)
     if FLAGS.is_train:
@@ -61,11 +61,11 @@ def main():
         train_x, train_y = train_it.get_next()
         valid_x, valid_y = valid_it.get_next()
 
-        train_pred = model.forward(train_x)
+        train_pred = model.forward(train_x, True)
         train_loss = model.loss_function(train_y, train_pred)
         train_op = model.optimize(train_loss)
 
-        valid_pred = model.forward(valid_x)
+        valid_pred = model.forward(valid_x, False)
         valid_loss = model.loss_function(valid_y, valid_pred) 
         var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
         saver = tf.train.Saver(var_list)
@@ -81,9 +81,8 @@ def main():
         train_loss_avg = tf.placeholder(tf.float32)
         valid_loss_avg = tf.placeholder(tf.float32)
         tf.summary.scalar('train_loss', train_loss_avg)
-        tf.summary.scalar('valid_loss', valid_loss_avg)
-        # tf.summary.scalar('PSNR', psnr)
-        # tf.summary.scalar('learning_rate', Net.learning_rate)
+        tf.summary.scalar('valid_loss', valid_loss_avg) 
+
         merged = tf.summary.merge_all()
 
         with tf.Session() as sess:
@@ -103,7 +102,7 @@ def main():
                 count = 0
                 try:
                     while True:
-                        _, loss = sess.run(train_op, train_loss)
+                        _, loss = sess.run([train_op, train_loss])
                         t_loss += loss
                         count += 1
                 except tf.errors.OutOfRangeError:
@@ -119,9 +118,9 @@ def main():
                 writer.add_summary(summary, epoch)
         
     else:
-        valid_dataset = make_dataset(False, batch_size=1)
+        valid_dataset = make_dataset(FLAGS.valid_img_dir, FLAGS.valid_label_dir, train=False, batch_size=1)
         valid_it = valid_dataset.make_initializable_iterator()
-        valid_pred = model.forward(valid_x)
+        valid_pred = model.forward(valid_x, False)
         valid_loss = model.loss_function(valid_y, valid_pred) 
         with tf.Session() as sess:
             if model.load(sess, saver, FLAGS.checkpoint_dir):
@@ -135,18 +134,23 @@ def main():
             try:
                 while True:
                     start_time = time.time()
-                    pred, loss = sess.run(valid_pred, valid_loss)
+                    valid_psnr = compute_psnr(valid_y, valid_pred)
+                    loss, psnr = sess.run([valid_loss, valid_psnr])
                     v_loss += loss
                     if count < 10:
-                        save_image(FLAGS.sample_dir+"/"+str(count)+".jpg", valid_pred)
-                        psnr = compute_psnr(valid_y, valid_pred)
-                        save_bicubic()
+                        bicubic_x = bicubic_upsample_x2(valid_x)
+                        bicubic_psnr = compute_psnr(valid_y, bicubic_psnr)
+                        bic, pred, bic_psnr = sess.run([bicubic_x, valid_pred, bicubic_psnr])
+                        save_image(FLAGS.sample_dir+"/bicubic_"+str(count)+".jpg", bic)
+                        save_image(FLAGS.sample_dir+"/pred_"+str(count)+".jpg", pred)
+                        f.write("%dth img => time: [%4.4f], loss: [%.8f], psnr: [%.4f], bicubic_psnr: [%.4f]\n"% ((count+1), time.time()-start_time, loss, psnr, bic_psnr))
+                    else:
+                        f.write("%dth img => time: [%4.4f], loss: [%.8f], psnr: [%.4f]\n"% ((count+1), time.time()-start_time, loss, psnr))
                     count += 1
-                    f.write("Epoch: [%2d], time: [%4.4f], loss: [%.8f], psnr: [%.4f]"% ((epoch+1), time.time()-start_time, loss, psnr))
-            
             except tf.errors.OutOfRangeError:
                 pass
             v_loss /= count
+            f.write("Avg. Loss : %.8f"%v_loss)
             f.close()
 
 if __name__=='__main__':

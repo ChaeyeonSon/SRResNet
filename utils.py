@@ -1,6 +1,7 @@
 import tensorflow as tf 
 import numpy as np
 import imageio
+from tensorflow.python.ops.image_ops_impl import ResizeMethod
 
 
 def compute_psnr(ref, target):
@@ -16,12 +17,14 @@ def compute_psnr(ref, target):
     return psnr
 
 def save_image(path, data, highres=True):
-  # transform from [-1, 1] to [0, 1]
-  if highres:
-    data = (data + 1.0) * 0.5
-  # transform from [0, 1] to [0, 255], clip, and convert to uint8
-  data = np.clip(data * 255.0, 0.0, 255.0).astype(np.uint8)
-  imageio.imwrite(path, data)
+    # transform from [-1, 1] to [0, 1]
+    if highres:
+        data = (data + 1.0) * 0.5
+    # transform from [0, 1] to [0, 255], clip, and convert to uint8
+    data = np.clip(data * 255.0, 0.0, 255.0).astype(np.uint8)
+    imageio.imwrite(path, data)
 
-def save_bicubic():
-  return NotImplemented
+def bicubic_upsample_x2(images):
+    _,h,w,_= tf.shape(images)
+    return tf.image.resize(images,[h*2, w*2], method=ResizeMethod.BICUBIC)
+    #return NotImplemented
