@@ -13,15 +13,15 @@ import glob
 # valid_img_data_list = glob('data\\mnist_png\\training\\*\\*.png')
 # valid_label_data_list = glob('data\\mnist_png\\training\\*\\*.png')
 
-train_img_data_dir = '../DIV2K_train_LR_bicubic/'
-train_label_data_dir = '../DIV2K_train_HR/'
+train_img_data_dir = '../DIV2K_train_LR_bicubic/*.png'
+train_label_data_dir = '../DIV2K_train_HR/*.png'
 valid_img_data_dir = '../DIV2K_valid_LR_bicubic/*.png'
 valid_label_data_dir = '../DIV2K_valid_HR/*.png'
 
-train_img_data_list = os.listdir(train_img_data_dir)
-train_label_data_list = os.listdir(train_label_data_dir)
-print(train_img_data_list)
-print(train_label_data_list)
+#train_img_data_list = os.listdir(train_img_data_dir)
+#train_label_data_list = os.listdir(train_label_data_dir)
+#print(train_img_data_list)
+#print(train_label_data_list)
 
 def decode_img(img):
   # convert the compressed string to a 3D uint8 tensor
@@ -77,7 +77,9 @@ def random_crop_size96(images):
 
 def make_dataset(train=True, batch_size=128):
   if train:
-    train_list_ds = tf.data.Dataset.list_files([train_img_data_dir, train_label_data_dir])
+    train_ds1 = tf.data.Dataset.list_files(train_img_data_dir)
+    train_ds2 = tf.data.Dataset.list_files(train_label_data_dir)
+    train_list_ds = tf.data.Dataset.zip((train_ds1,train_ds2))
     train_labeled_ds = train_list_ds.map(process_path, num_parallel_calls=10).map(random_crop_size64)
     train_labeled_ds = train_labeled_ds.shuffle(1000).batch(batch_size).prefetch(buffer_size=10)
     return train_labeled_ds
@@ -86,3 +88,12 @@ def make_dataset(train=True, batch_size=128):
     valid_list_ds = tf.data.Dataset.list_files([valid_img_data_dir, valid_label_data_dir])
     valid_labled_ds = valid_list_ds.map(process_path, num_parallel_calls=10).batch(1).prefetch(buffer_size=10)
     return valid_labled_ds
+
+sess = tf.Session()
+ds1 = tf.data.Dataset.list_files(train_img_data_dir, shuffle=False)
+ds2 = tf.data.Dataset.list_files(train_label_data_dir, shuffle=False)
+ds = tf.data.Dataset.zip((ds1,ds2))
+it = ds.make_one_shot_iterator()
+elem1, elem2 = it.get_next()
+while True:
+  print(sess.run([elem1, elem2]))
