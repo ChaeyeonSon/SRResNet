@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import os 
-from glob import glob 
+import glob 
 
 # random crop
 # tf.image
@@ -13,13 +13,13 @@ from glob import glob
 # valid_img_data_list = glob('data\\mnist_png\\training\\*\\*.png')
 # valid_label_data_list = glob('data\\mnist_png\\training\\*\\*.png')
 
-train_img_data_dir = '../DIV2K_train_LR_bicubic/*.png'
-train_label_data_dir = '../DIV2K_train_HR/*.png'
+train_img_data_dir = '../DIV2K_train_LR_bicubic/'
+train_label_data_dir = '../DIV2K_train_HR/'
 valid_img_data_dir = '../DIV2K_valid_LR_bicubic/*.png'
 valid_label_data_dir = '../DIV2K_valid_HR/*.png'
 
-train_img_data_list = glob.glob(train_img_data_dir)
-train_label_data_list = glob.glob(train_label_data_dir)
+train_img_data_list = os.listdir(train_img_data_dir)
+train_label_data_list = os.listdir(train_label_data_dir)
 print(train_img_data_list)
 print(train_label_data_list)
 
