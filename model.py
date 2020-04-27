@@ -10,7 +10,7 @@ from data_process import *
 
 
 class SRGenerator:
-  def __init__(self, gpu=True, device = 0, content_loss='mse', use_gan=False, learning_rate=1e-4, num_blocks=16, num_upsamples=2):
+  def __init__(self, device='CPU', device_num = 0, content_loss='mse', use_gan=False, learning_rate=1e-4, num_blocks=16, num_upsamples=2):
       self.learning_rate = learning_rate
       self.num_blocks = num_blocks
       self.num_upsamples = num_upsamples
@@ -21,21 +21,7 @@ class SRGenerator:
           print('Invalid content loss function. Must be \'mse\', \'vgg22\', or \'vgg54\'.')
           exit()
       self.content_loss = content_loss
-      if gpu:
-        self.device = "/gpu:"+str(device)
-      else:
-        self.device = "/cpu:"+str(device)
-      #self.saver = tf.train.Saver()
-      #self.sess = None
-
-  # def weight_variable(self, shape):
-  #   initial = tf.truncated_normal(shape, stddev=0.1)
-  #   return tf.Variable(initial)
-
-  # def conv2d(self, x, kernel_size=3, input_filters=64, output_filters=64, strides=1, padding='same', use_bias=False):
-    
-  #   return tf.nn.conv2d(x, filters=self.weight_variable([kernel_size, kernel_size, input_filters,output_filters]), 
-  #   strides=[1,strides,strides,1], padding=padding)
+      self.device = "/device:"+device+":"+str(device_num)
   
   def _residual_block(self, x, kernel_size, filters, strides=1, training=False):
     x = tf.nn.relu(x)
@@ -98,7 +84,7 @@ class SRGenerator:
       return tf.train.AdamOptimizer(self.learning_rate).minimize(loss, var_list=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='generator'))
 
   def save(self, sess, saver, checkpoint_dir, step):
-    model_name = "SRResNet.model"
+    model_name = "SRResNet"
     model_dir = "%s_%s" % ("srresnet", 1)
     checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
@@ -115,7 +101,9 @@ class SRGenerator:
     ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
     if ckpt and ckpt.model_checkpoint_path:
         ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+        print("Restored %s "%ckpt_name)
+        
         saver.restore(sess, os.path.join(checkpoint_dir, ckpt_name))
-        return True
+        return True, int(ckpt_name.split('-')[-1])
     else:
-        return False
+        return False, 0

@@ -12,13 +12,13 @@ import time
 flags = tf.app.flags
 
 flags.DEFINE_integer("batch_size", 64, "The size of batch images [128]")
-flags.DEFINE_integer("image_size", 33, "The size of image to use [33]")
-flags.DEFINE_integer("label_size", 21, "The size of label to produce [21]")
+#flags.DEFINE_integer("image_size", 33, "The size of image to use [33]")
+#flags.DEFINE_integer("label_size", 21, "The size of label to produce [21]")
 flags.DEFINE_integer("epochs", 100000, "The number of epochs of learning")
 flags.DEFINE_float("learning_rate", 1e-4, "The learning rate of gradient descent algorithm [1e-4]")
-flags.DEFINE_integer("c_dim", 1, "Dimension of image color. [1]")
-flags.DEFINE_integer("scale", 3, "The size of scale factor for preprocessing input image [3]")
-flags.DEFINE_integer("stride", 14, "The size of stride to apply input image [14]")
+#flags.DEFINE_integer("c_dim", 1, "Dimension of image color. [1]")
+flags.DEFINE_integer("scale", 2, "The size of scale factor for preprocessing input image [3]")
+#flags.DEFINE_integer("stride", 14, "The size of stride to apply input image [14]")
 flags.DEFINE_string("checkpoint_dir", "./checkpoint", "Name of checkpoint directory [checkpoint]")
 flags.DEFINE_string("sample_dir", "sample", "Name of sample directory [sample]")
 flags.DEFINE_string("train_img_dir", "../train_data/DIV2K_train_LR_bicubic/*.png", "Name of train img directory [train_img]")
@@ -29,17 +29,13 @@ flags.DEFINE_string("test_img_dir", "../test_data/DIV2K_valid_LR_bicubic/*.png",
 flags.DEFINE_string("test_label_dir", '../test_data/DIV2K_valid_HR/*.png', "Name of svalid label directory [valid_label]")
 
 flags.DEFINE_boolean("is_train", True, "True for training, False for testing [True]")
-flags.DEFINE_integer("gpu", 0, "Which GPU to use")
+flags.DEFINE_string("device", "XLA_GPU", "Which device to use")
+flags.DEFINE_integer("device_num", 0, "Which device number to use")
 
 FLAGS = flags.FLAGS
 
 pp = pprint.PrettyPrinter()
 
-def train():
-    return NotImplemented
-
-def test():
-    return NotImplemented
 
 def main():
     #pp.pprint(flags.FLAGS.__flags)
@@ -50,10 +46,11 @@ def main():
         os.makedirs(FLAGS.sample_dir)
     if not os.path.exists('./board'):
         os.makedirs('./board')
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(FLAGS.gpu)
-    model = SRGenerator()
-    #var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
-    #saver = tf.train.Saver(var_list)
+    os.environ['CUDA_DEVICE_ORDER']="PCI_BUS_ID"
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(FLAGS.device_num)
+    tf.config.set_soft_device_placement(True)
+    model = SRGenerator(device=FLAGS.device, device_num=FLAGS.device_num) 
+
     if FLAGS.is_train:
         train_dataset = make_dataset(FLAGS.train_img_dir, FLAGS.train_label_dir, train=True,batch_size=FLAGS.batch_size)
         train_it = train_dataset.make_initializable_iterator()
@@ -96,16 +93,16 @@ def main():
             writer.add_graph(sess.graph)
 
             sess.run(tf.global_variables_initializer())
-            if model.load(sess, saver, FLAGS.checkpoint_dir):
+            loaded, start_epoch = model.load(sess, saver, FLAGS.checkpoint_dir)
+            if loaded:
                 print(" [*] Load SUCCESS")
             else:
                 print(" [!] Load failed...")
             
-            for epoch in tqdm(range(FLAGS.epochs)):
+            for epoch in tqdm(range(start_epoch,FLAGS.epochs)):
                 start_time = time.time()
                 print("HI")
                 sess.run(train_it.initializer)
-                print("HI!!!")
                 t_loss = 0.0
                 count = 0
                 try:
@@ -134,13 +131,12 @@ def main():
                 v_loss /= count
                 print("Epoch: [%2d], time: [%4.4f], train_loss: [%.8f], valid_loss: [%.8f]"% ((epoch+1), time.time()-start_time, t_loss, v_loss))
                 model.save(sess, saver, FLAGS.checkpoint_dir, epoch)
-                print("where TT")
+                
                 summary = sess.run(scalar_merged, feed_dict={train_loss_avg: t_loss, valid_loss_avg: v_loss})
-                print("isyou?")
+               
                 writer.add_summary(train_img_summary, epoch)
                 writer.add_summary(valid_img_summary, epoch)
                 writer.add_summary(summary, epoch)
-                print("TTTT")
         
     else:
         valid_dataset = make_dataset(FLAGS.valid_img_dir, FLAGS.valid_label_dir, train=False, batch_size=1)
