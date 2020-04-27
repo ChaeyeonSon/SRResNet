@@ -1,0 +1,1 @@
+0th img => time: [10.7936], loss: [0.26951507], psnr: [11.7148], bicubic_psnr: [33.7252]

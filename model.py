@@ -103,6 +103,6 @@ class SRGenerator:
         print("Restored %s "%ckpt_name)
         
         saver.restore(sess, os.path.join(checkpoint_dir, ckpt_name))
-        return True, int(ckpt_name.split('-')[-1])
+        return True, int(ckpt_name.split('-')[-1])+1
     else:
         return False, 0

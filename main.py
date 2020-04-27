@@ -29,7 +29,7 @@ flags.DEFINE_string("test_img_dir", "../test_data/DIV2K_valid_LR_bicubic/*.png",
 flags.DEFINE_string("test_label_dir", '../test_data/DIV2K_valid_HR/*.png', "Name of svalid label directory [valid_label]")
 
 flags.DEFINE_boolean("is_train", True, "True for training, False for testing [True]")
-flags.DEFINE_string("device", "XLA_GPU", "Which device to use")
+flags.DEFINE_string("device", "GPU", "Which device to use")
 flags.DEFINE_integer("device_num", 0, "Which device number to use")
 
 FLAGS = flags.FLAGS
@@ -38,7 +38,7 @@ pp = pprint.PrettyPrinter()
 
 
 def main():
-    #pp.pprint(flags.FLAGS.__flags)
+    pp.pprint(flags.FLAGS.__flags)
 
     if not os.path.exists(FLAGS.checkpoint_dir):
         os.makedirs(FLAGS.checkpoint_dir)
@@ -49,9 +49,11 @@ def main():
     os.environ['CUDA_DEVICE_ORDER']="PCI_BUS_ID"
     os.environ['CUDA_VISIBLE_DEVICES'] = str(FLAGS.device_num)
     tf.config.set_soft_device_placement(True)
-    with tf.device("/device:"+FLAGS.device+":"+str(FLAGS.device_num)):
+    if True:
+    #with tf.device("/device:"+FLAGS.device+":"+str(FLAGS.device_num)):
         model = SRGenerator() 
-
+        #var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
+        #saver = tf.train.Saver(var_list)
         if FLAGS.is_train:
             train_dataset = make_dataset(FLAGS.train_img_dir, FLAGS.train_label_dir, train=True,batch_size=FLAGS.batch_size)
             train_it = train_dataset.make_initializable_iterator()
@@ -139,12 +141,16 @@ def main():
                     writer.add_summary(summary, epoch)
             
         else:
-            valid_dataset = make_dataset(FLAGS.valid_img_dir, FLAGS.valid_label_dir, train=False, batch_size=1)
+            valid_dataset = make_dataset(FLAGS.test_img_dir, FLAGS.test_label_dir, train=False, batch_size=1)
             valid_it = valid_dataset.make_initializable_iterator()
+            valid_x, valid_y = valid_it.get_next()
             valid_pred = model.forward(valid_x, False)
             valid_loss = model.loss_function(valid_y, valid_pred) 
+            var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
+            saver = tf.train.Saver(var_list)
             with tf.Session() as sess:
-                if model.load(sess, saver, FLAGS.checkpoint_dir):
+                loaded, _ = model.load(sess, saver, FLAGS.checkpoint_dir)
+                if loaded:
                     print(" [*] Load SUCCESS")
                 else:
                     print(" [!] Load failed...")
@@ -155,18 +161,20 @@ def main():
                 try:
                     while True:
                         start_time = time.time()
-                        valid_psnr = compute_psnr(valid_y, valid_pred)
-                        loss, psnr = sess.run([valid_loss, valid_psnr])
-                        v_loss += loss
                         if count < 10:
-                            bicubic_x = bicubic_upsample_x2(valid_x)
-                            bicubic_psnr = compute_psnr(valid_y, bicubic_psnr)
-                            bic, pred, bic_psnr = sess.run([bicubic_x, valid_pred, bicubic_psnr])
-                            save_image(FLAGS.sample_dir+"/bicubic_"+str(count)+".jpg", bic)
-                            save_image(FLAGS.sample_dir+"/pred_"+str(count)+".jpg", pred)
-                            f.write("%dth img => time: [%4.4f], loss: [%.8f], psnr: [%.4f], bicubic_psnr: [%.4f]\n"% ((count+1), time.time()-start_time, loss, psnr, bic_psnr))
+                            loss, x, y, pred = sess.run([valid_loss, valid_x, valid_y, valid_pred])
+                            bicubic_x = bicubic_upsample_x2(x[0])
+                            bicubic_psnr = compute_psnr_np(y[0], bicubic_x)
+                            psnr = compute_psnr_np(y, pred)
+                            save_image(FLAGS.sample_dir+"/bicubic_"+str(count)+".jpg", bicubic_x)
+                            save_image(FLAGS.sample_dir+"/pred_"+str(count)+".jpg", pred[0])
+                            v_loss += loss
+                            f.write("%dth img => time: [%4.4f], loss: [%.8f], psnr: [%.4f], bicubic_psnr: [%.4f]\n"% ((count), time.time()-start_time, loss, psnr, bicubic_psnr))
                         else:
-                            f.write("%dth img => time: [%4.4f], loss: [%.8f], psnr: [%.4f]\n"% ((count+1), time.time()-start_time, loss, psnr))
+                            valid_psnr = compute_psnr_tf(valid_y, valid_pred)
+                            loss, psnr  = sess.run([valid_loss, valid_psnr])
+                            v_loss += loss
+                            f.write("%dth img => time: [%4.4f], loss: [%.8f], psnr: [%.4f]\n"% ((count), time.time()-start_time, loss, psnr))
                         count += 1
                 except tf.errors.OutOfRangeError:
                     pass
