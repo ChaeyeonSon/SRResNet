@@ -85,5 +85,18 @@ def make_dataset(img_file_path, label_file_path, train=True, batch_size=128):
   else:
     valid_labeled_ds = labeled_ds.batch(1).prefetch(buffer_size=5)
     return valid_labeled_ds
-
-
+'''
+ds= make_dataset(train_img_data_dir,train_label_data_dir, batch_size=64)
+it = ds.make_initializable_iterator()
+n1, n2 = it.get_next()
+with tf.Session() as sess:
+  
+  for i in range(2):
+    sess.run(it.initializer)
+    while True:
+      try:
+        print(sess.run([tf.shape(n1), tf.shape(n2)]))
+      except tf.errors.OutOfRangeError:
+        print("end")
+        break
+'''

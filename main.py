@@ -98,7 +98,9 @@ def main():
             
             for epoch in tqdm(range(FLAGS.epochs)):
                 start_time = time.time()
+                print("HI")
                 sess.run(train_it.initializer)
+                print("HI!!!")
                 t_loss = 0.0
                 count = 0
                 try:
@@ -107,6 +109,7 @@ def main():
                         _ = sess.run(train_x)
                         #_, loss = sess.run([train_op, train_loss])
                         t_loss += loss
+                        print("count : %d"%count)
                         count += 1
                 except tf.errors.OutOfRangeError:
                     pass
@@ -114,11 +117,16 @@ def main():
                 sess.run(valid_it.initializer)
                 v_loss = 0.0
                 for i in range(10):
-                    v_loss += sess.run(valid_loss)/10
+                    _ = sess.run(valid_x)
+                    v_loss = 0
+                    #v_loss += sess.run(valid_loss)/10
                 print("Epoch: [%2d], time: [%4.4f], train_loss: [%.8f], valid_loss: [%.8f]"% ((epoch+1), time.time()-start_time, t_loss, v_loss))
                 model.save(sess, saver, FLAGS.checkpoint_dir, epoch)
+                print("where TT")
                 summary = sess.run(merged, feed_dict={train_loss_avg: t_loss, valid_loss_avg: v_loss})
+                print("isyou?")
                 writer.add_summary(summary, epoch)
+                print("TTTT")
         
     else:
         valid_dataset = make_dataset(FLAGS.valid_img_dir, FLAGS.valid_label_dir, train=False, batch_size=1)
