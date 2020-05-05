@@ -84,7 +84,7 @@ class SRGenerator:
 
   def save(self, sess, saver, checkpoint_dir, step):
     model_name = "SRResNet"
-    model_dir = "%s_%s" % ("srresnet", 1)
+    model_dir = "%s_%s" % ("srresnet", 2)
     checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
     if not os.path.exists(checkpoint_dir):
@@ -94,7 +94,7 @@ class SRGenerator:
 
   def load(self, sess, saver, checkpoint_dir):
     print(" [*] Reading checkpoints...")
-    model_dir = "%s_%s" % ("srresnet", 1)
+    model_dir = "%s_%s" % ("srresnet", 2)
     checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
     ckpt = tf.train.get_checkpoint_state(checkpoint_dir)

@@ -5,8 +5,8 @@ import glob
 
 
 
-train_img_data_dir = '../DIV2K_train_LR_bicubic/*.png'
-train_label_data_dir = '../DIV2K_train_HR/*.png'
+train_img_data_dir = '../train_data/DIV2K_train_LR_bicubic/*.png'
+train_label_data_dir = '../train_data/DIV2K_train_HR/*.png'
 valid_img_data_dir = '../DIV2K_valid_LR_bicubic/*.png'
 valid_label_data_dir = '../DIV2K_valid_HR/*.png'
 
@@ -32,61 +32,49 @@ def process_path(img_file_path, label_file_path):
   img = tf.io.read_file(img_file_path)
   img = decode_img(img)
   return img, label
+import random
+def randomCrop(img, mask, width, height):
+    #assert img.shape[0] >= height
+    #assert img.shape[1] >= width
+    #assert img.shape[0]*2 == mask.shape[0]
+    #assert img.shape[1]*2 == mask.shape[1]
+    x=tf.random.uniform([], minval = 0, maxval=tf.shape(img)[1] - width, dtype=tf.int32)
+    y=tf.random.uniform([], minval = 0, maxval=tf.shape(img)[0] - height, dtype=tf.int32)
+#    x = random.randint(0, img.shape[1] - width)
+#    y = random.randint(0, img.shape[0] - height)
+    img = tf.image.crop_to_bounding_box(img,y, x,height,width)
+    mask = tf.image.crop_to_bounding_box(mask,y*2, x*2, height*2, width*2)
+    return img, mask
 
-def random_crop_and_pad_image_and_labels(image, labels, size):
-  """Randomly crops `image` together with `labels`.
-
-  Args:
-    image: A Tensor with shape [D_1, ..., D_K, N]
-    labels: A Tensor with shape [D_1, ..., D_K, M]
-    size: A Tensor with shape [K] indicating the crop size.
-  Returns:
-    A tuple of (cropped_image, cropped_label).
-  """
-  combined = tf.concat([image, labels], axis=2)
-  image_shape = tf.shape(image)
-  combined_pad = tf.image.pad_to_bounding_box(
-      combined, 0, 0,
-      tf.maximum(size[0], image_shape[0]),
-      tf.maximum(size[1], image_shape[1]))
-  last_label_dim = tf.shape(labels)[-1]
-  last_image_dim = tf.shape(image)[-1]
-  combined_crop = tf.random_crop(
-      combined_pad,
-      size=tf.concat([size, [last_label_dim + last_image_dim]],
-                     axis=0))
-  return (combined_crop[:, :, :last_image_dim],
-          combined_crop[:, :, last_image_dim:])
-
-
-seed = 0
 def random_crop_size64(images, labels):
-  global seed
-  seed += 1
-  return (tf.image.random_crop(images,[32,32,3],seed=seed),tf.image.random_crop(labels,[64,64,3],seed=seed))
+  
+  return randomCrop(images,labels,64,64)
 
 # Set `num_parallel_calls` so multiple images are loaded/processed in parallel.
 
 def random_crop_size96(images, labels):
-  global seed
-  seed += 1
-  return (tf.image.random_crop(images,[48,48,3],seed=seed),tf.image.random_crop(labels,[96,96,3],seed=seed))
+
+  return randomCrop(images,labels,48,48)
 
 
 def make_dataset(img_file_path, label_file_path, train=True, batch_size=128):
   ds1 = tf.data.Dataset.list_files(img_file_path, shuffle=False)
   ds2 = tf.data.Dataset.list_files(label_file_path, shuffle=False)
   ds = tf.data.Dataset.zip((ds1, ds2))
-  labeled_ds = ds.map(process_path, num_parallel_calls=10)
+  #return ds.shuffle(800).map(process_path, num_parallel_calls=10).batch(batch_size).prefetch(buffer_size=10)
+  #return ds.shuffle(800).map(process_path, num_parallel_calls=10).map(random_crop_size64).batch(batch_size).prefetch(buffer_size=10)
+  
   if train:
-    train_labeled_ds = labeled_ds.map(random_crop_size64).shuffle(800).batch(batch_size).prefetch(buffer_size=5)
+    train_labeled_ds = ds.shuffle(800).map(process_path, num_parallel_calls=10).map(random_crop_size64).batch(batch_size).prefetch(buffer_size=10)
     return train_labeled_ds
 
   else:
-    valid_labeled_ds = labeled_ds.batch(1).prefetch(buffer_size=5)
+    valid_labeled_ds = ds.map(process_path, num_parallel_calls=10).batch(1).prefetch(buffer_size=10)
     return valid_labeled_ds
-'''
-ds= make_dataset(train_img_data_dir,train_label_data_dir, batch_size=64)
+"""
+import matplotlib.pyplot as pp
+
+ds= make_dataset(train_img_data_dir,train_label_data_dir, batch_size=1)
 it = ds.make_initializable_iterator()
 n1, n2 = it.get_next()
 with tf.Session() as sess:
@@ -95,8 +83,17 @@ with tf.Session() as sess:
     sess.run(it.initializer)
     while True:
       try:
-        print(sess.run([tf.shape(n1), tf.shape(n2)]))
+        img1, img2 = sess.run([n1, n2])
+        #img1, img2 = sess.run([n1,n2])
+        
+        print("new")
+        pp.imshow((img1[0]+1)/2)
+        pp.show()
+        pp.imshow((img2[0]+1)/2)
+        pp.show()
+        pp.pause(0)
+        
       except tf.errors.OutOfRangeError:
         print("end")
         break
-'''
+"""
