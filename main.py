@@ -54,172 +54,157 @@ def main():
     os.environ['CUDA_DEVICE_ORDER']="PCI_BUS_ID"
     os.environ['CUDA_VISIBLE_DEVICES'] = str(FLAGS.device_num)
     tf.config.set_soft_device_placement(True)
-    if True:
-    #with tf.device("/device:"+FLAGS.device+":"+str(FLAGS.device_num)):
-        model = SRGenerator() 
-        #var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
-        #saver = tf.train.Saver(var_list)
-        if FLAGS.is_train:
-            train_dataset = make_dataset(FLAGS.train_img_dir, FLAGS.train_label_dir, train=True,batch_size=FLAGS.batch_size)
-            train_it = train_dataset.make_initializable_iterator()
+    model = SRGenerator() 
+    
+    if FLAGS.is_train:
+        train_dataset = make_dataset(FLAGS.train_img_dir, FLAGS.train_label_dir, train=True,batch_size=FLAGS.batch_size)
+        train_it = train_dataset.make_initializable_iterator()
 
-            valid_dataset = make_dataset(FLAGS.valid_img_dir, FLAGS.valid_label_dir, train=False, batch_size=1) 
-            valid_it = valid_dataset.make_initializable_iterator()
+        valid_dataset = make_dataset(FLAGS.valid_img_dir, FLAGS.valid_label_dir, train=False, batch_size=1) 
+        valid_it = valid_dataset.make_initializable_iterator()
+        
+        train_x, train_y = train_it.get_next()
+        valid_x, valid_y = valid_it.get_next()
+
+        train_pred = model.forward(train_x, True)
+        train_loss = model.loss_function(train_y, train_pred)
+        train_psnr = utils.compute_psnr_tf(train_pred, train_y)
+        train_op = model.optimize(train_loss)
+
+        valid_pred = model.forward(valid_x, False)
+        valid_loss = model.loss_function(valid_y, valid_pred) 
+        valid_psnr = utils.compute_psnr_tf(valid_pred, valid_y)
+        var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
+        saver = tf.train.Saver(var_list)
+        with tf.name_scope('train_summary'):
+            ts1= tf.summary.image('input_summary', train_x)
+            ts2 = tf.summary.image('target_summary', train_y)
+            ts3 = tf.summary.image('outputs_summary', train_pred)
+        train_img_merged = tf.summary.merge([ts1, ts2, ts3])
+        with tf.name_scope('valid_summary'):
+            vs1= tf.summary.image('input_summary', valid_x)
+            vs2 = tf.summary.image('target_summary', valid_y)
+            vs3 = tf.summary.image('outputs_summary', valid_pred)
+        valid_img_merged = tf.summary.merge([vs1, vs2, vs3])
+
+        train_loss_avg = tf.placeholder(tf.float32)
+        valid_loss_avg = tf.placeholder(tf.float32)
+        ts_loss = tf.summary.scalar('train_loss', train_loss_avg)
+        vs_loss = tf.summary.scalar('valid_loss', valid_loss_avg) 
+        train_psnr_avg = tf.placeholder(tf.float32)
+        valid_psnr_avg = tf.placeholder(tf.float32)
+        ts_psnr = tf.summary.scalar('train_psnr', train_psnr_avg)
+        vs_psnr = tf.summary.scalar('valid_psnr', valid_psnr_avg) 
+        scalar_merged= tf.summary.merge([ts_loss,vs_loss,ts_psnr,vs_psnr])
+        
+
+        with tf.Session() as sess:
+
+            writer = tf.summary.FileWriter('./board/graph/srresnet_2', sess.graph)
+            writer.add_graph(sess.graph)
+
+            sess.run(tf.global_variables_initializer())
+            loaded, start_epoch = model.load(sess, saver, FLAGS.checkpoint_dir)
+            if loaded:
+                print(" [*] Load SUCCESS")
+            else:
+                print(" [!] Load failed...")
             
-            train_x, train_y = train_it.get_next()
-            valid_x, valid_y = valid_it.get_next()
-
-            train_pred = model.forward(train_x, True)
-            train_loss = model.loss_function(train_y, train_pred)
-            train_psnr = utils.compute_psnr_tf(train_pred, train_y)
-            train_op = model.optimize(train_loss)
-
-            valid_pred = model.forward(valid_x, False)
-            valid_loss = model.loss_function(valid_y, valid_pred) 
-            valid_psnr = utils.compute_psnr_tf(valid_pred, valid_y)
-            var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
-            saver = tf.train.Saver(var_list)
-            with tf.name_scope('train_summary'):
-                ts1= tf.summary.image('input_summary', train_x)
-                ts2 = tf.summary.image('target_summary', train_y)
-                ts3 = tf.summary.image('outputs_summary', train_pred)
-            train_img_merged = tf.summary.merge([ts1, ts2, ts3])
-            with tf.name_scope('valid_summary'):
-                vs1= tf.summary.image('input_summary', valid_x)
-                vs2 = tf.summary.image('target_summary', valid_y)
-                vs3 = tf.summary.image('outputs_summary', valid_pred)
-            valid_img_merged = tf.summary.merge([vs1, vs2, vs3])
-
-            train_loss_avg = tf.placeholder(tf.float32)
-            valid_loss_avg = tf.placeholder(tf.float32)
-            ts_loss = tf.summary.scalar('train_loss', train_loss_avg)
-            vs_loss = tf.summary.scalar('valid_loss', valid_loss_avg) 
-            train_psnr_avg = tf.placeholder(tf.float32)
-            valid_psnr_avg = tf.placeholder(tf.float32)
-            ts_psnr = tf.summary.scalar('train_psnr', train_psnr_avg)
-            vs_psnr = tf.summary.scalar('valid_psnr', valid_psnr_avg) 
-            scalar_merged= tf.summary.merge([ts_loss,vs_loss,ts_psnr,vs_psnr])
-            
-
-            with tf.Session() as sess:
-
-                writer = tf.summary.FileWriter('./board/graph/srresnet_2', sess.graph)
-                writer.add_graph(sess.graph)
-
-                sess.run(tf.global_variables_initializer())
-                loaded, start_epoch = model.load(sess, saver, FLAGS.checkpoint_dir)
-                if loaded:
-                    print(" [*] Load SUCCESS")
-                else:
-                    print(" [!] Load failed...")
-                
-                for epoch in tqdm(range(start_epoch,FLAGS.epochs)):
-                    start_time = time.time()
-                    sess.run(train_it.initializer)
-                    t_loss = 0.0
-                    t_psnr = 0.0
-                    count = 0
-                    try:
-                        while True:
-                            # loss = 0
-                            # _ = sess.run(train_x)
-                            _, loss, psnr, train_img_summary = sess.run([train_op, train_loss, train_psnr, train_img_merged])
-                            t_loss += loss
-                            t_psnr += psnr
-                            # print("count : %d"%count)
-                            count += 1
-                    except tf.errors.OutOfRangeError:
-                        pass
-                    t_loss /= count
-                    t_psnr /= count
-
-                    sess.run(valid_it.initializer)
-                    v_loss = 0.0
-                    v_psnr = 0.0
-                    count = 0
-                    while True:
-                        try:
-                            # _ = sess.run(valid_x)
-                            # v_loss = 0
-                            loss, psnr, valid_img_summary = sess.run([valid_loss, valid_psnr,valid_img_merged])
-                            v_loss += loss
-                            v_psnr += psnr
-                            count += 1 
-                        except tf.errors.OutOfRangeError:
-                            break
-                    v_loss /= count
-                    v_psnr /= count
-                    print("Epoch: [%2d], time: [%4.4f], train_loss: [%.8f], train_psnr: [%.4f], valid_loss: [%.8f], valid_psnr: [%.4f]"% ((epoch+1), time.time()-start_time, t_loss, t_psnr, v_loss, v_psnr))
-                    model.save(sess, saver, FLAGS.checkpoint_dir, epoch)
-                    
-                    summary = sess.run(scalar_merged, feed_dict={train_loss_avg: t_loss, valid_loss_avg: v_loss, train_psnr_avg: t_psnr, valid_psnr_avg: v_psnr})
-                
-                    writer.add_summary(train_img_summary, epoch)
-                    writer.add_summary(valid_img_summary, epoch)
-                    writer.add_summary(summary, epoch)
-            
-        else:
-            valid_dataset = make_dataset(FLAGS.test_img_dir, FLAGS.test_label_dir, train=False, batch_size=1)
-            valid_it = valid_dataset.make_initializable_iterator()
-
-            valid_x, valid_y = valid_it.get_next()
-            valid_bicubic = bicubic_upsample_x2_tf(valid_x)
-            valid_pred = model.forward(valid_x, False)
-
-            valid_loss = model.loss_function(valid_y, valid_pred) 
-            valid_bic_psnr = compute_psnr_tf(valid_y, valid_bicubic)
-            valid_psnr = compute_psnr_tf(valid_y, valid_pred)
-            valid_bic_ssim = compute_ssim_tf(valid_y, valid_bicubic)
-            valid_ssim = compute_ssim_tf(valid_y, valid_pred)
-
-            var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
-            saver = tf.train.Saver(var_list)
-            with tf.Session() as sess:
-                loaded, _ = model.load(sess, saver, FLAGS.checkpoint_dir)
-                if loaded:
-                    print(" [*] Load SUCCESS")
-                else:
-                    print(" [!] Load failed...")
-                sess.run(valid_it.initializer)
-                v_loss = 0.0
-                v_psnr = 0.0
-                v_ssim = 0.0
-                v_bic_psnr = 0.0
-                v_bic_ssim = 0.0
+            for epoch in tqdm(range(start_epoch,FLAGS.epochs)):
+                start_time = time.time()
+                sess.run(train_it.initializer)
+                t_loss = 0.0
+                t_psnr = 0.0
                 count = 0
-                f = open(FLAGS.sample_dir+"/result.txt","w")
                 try:
                     while True:
-                        start_time = time.time()
-                        #if count < 10:
-                        loss, psnr, bic_psnr, ssim, bic_ssim, bic_x, x, y, pred = sess.run([valid_loss, valid_psnr, valid_bic_psnr, valid_ssim, valid_bic_ssim, valid_bicubic, valid_x, valid_y, valid_pred])
-                        #bicubic_x = bicubic_upsample_x2(x[0])
-                        #bicubic_psnr = compute_psnr_np(y[0], bicubic_x)
-                        #bicubic_ssim = ssim(y[0], bicubic_x)
-                        #psnr = compute_psnr_np(y, pred)
-                        #ssim = ssim(y, pred)
-                        if count< 10:
-                            save_image(FLAGS.sample_dir+"/LR_"+str(count)+".jpg", x[0])
-                            save_image(FLAGS.sample_dir+"/HR_"+str(count)+".jpg", y[0])
-                            save_image(FLAGS.sample_dir+"/bicubic_"+str(count)+".jpg", bic_x[0])
-                            save_image(FLAGS.sample_dir+"/pred_"+str(count)+".jpg", pred[0])
-                        v_loss += loss
-                        v_psnr += psnr
-                        v_ssim += ssim
-                        v_bic_psnr += bic_psnr
-                        v_bic_ssim += bic_ssim
-                        f.write("%dth img => time: [%4.4f], loss: [%.8f], psnr: [%.4f], bicubic_psnr: [%.4f], ssim: [%.4f], bicubic_ssim: [%.4f]\n"% ((count), time.time()-start_time, loss, psnr, bic_psnr, ssim, bic_ssim))
-                        #else:
-                        #    valid_psnr = compute_psnr_tf(valid_y, valid_pred)
-                        #    loss, psnr  = sess.run([valid_loss, valid_psnr])
-                        #    v_loss += loss
-                        #    f.write("%dth img => time: [%4.4f], loss: [%.8f], psnr: [%.4f]\n"% ((count), time.time()-start_time, loss, psnr))
+                        # loss = 0
+                        # _ = sess.run(train_x)
+                        _, loss, psnr, train_img_summary = sess.run([train_op, train_loss, train_psnr, train_img_merged])
+                        t_loss += loss
+                        t_psnr += psnr
                         count += 1
                 except tf.errors.OutOfRangeError:
                     pass
-                #v_loss /= count
-                f.write("Avg. Loss : %.8f, Avg. PSNR : %.4f, Avg. SSIM : %.4f, Avg. BICUBIC_PSNR : %.4f, Avg. BICUBIC_SSIM : %.4f"%(v_loss/count, v_psnr/count, v_ssim/count, v_bic_psnr/count, v_bic_ssim/count))
-                f.close()
+                t_loss /= count
+                t_psnr /= count
+
+                sess.run(valid_it.initializer)
+                v_loss = 0.0
+                v_psnr = 0.0
+                count = 0
+                while True:
+                    try:
+                        # _ = sess.run(valid_x)
+                        # v_loss = 0
+                        loss, psnr, valid_img_summary = sess.run([valid_loss, valid_psnr,valid_img_merged])
+                        v_loss += loss
+                        v_psnr += psnr
+                        count += 1 
+                    except tf.errors.OutOfRangeError:
+                        break
+                v_loss /= count
+                v_psnr /= count
+                print("Epoch: [%2d], time: [%4.4f], train_loss: [%.8f], train_psnr: [%.4f], valid_loss: [%.8f], valid_psnr: [%.4f]"% ((epoch+1), time.time()-start_time, t_loss, t_psnr, v_loss, v_psnr))
+                model.save(sess, saver, FLAGS.checkpoint_dir, epoch)
+                
+                summary = sess.run(scalar_merged, feed_dict={train_loss_avg: t_loss, valid_loss_avg: v_loss, train_psnr_avg: t_psnr, valid_psnr_avg: v_psnr})
+            
+                writer.add_summary(train_img_summary, epoch)
+                writer.add_summary(valid_img_summary, epoch)
+                writer.add_summary(summary, epoch)
+        
+    else:
+        valid_dataset = make_dataset(FLAGS.test_img_dir, FLAGS.test_label_dir, train=False, batch_size=1)
+        valid_it = valid_dataset.make_initializable_iterator()
+
+        valid_x, valid_y = valid_it.get_next()
+        valid_bicubic = bicubic_upsample_x2_tf(valid_x)
+        valid_pred = model.forward(valid_x, False)
+
+        valid_loss = model.loss_function(valid_y, valid_pred) 
+        valid_bic_psnr = compute_psnr_tf(valid_y, valid_bicubic)
+        valid_psnr = compute_psnr_tf(valid_y, valid_pred)
+        valid_bic_ssim = compute_ssim_tf(valid_y, valid_bicubic)
+        valid_ssim = compute_ssim_tf(valid_y, valid_pred)
+
+        var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
+        saver = tf.train.Saver(var_list)
+        with tf.Session() as sess:
+            loaded, _ = model.load(sess, saver, FLAGS.checkpoint_dir)
+            if loaded:
+                print(" [*] Load SUCCESS")
+            else:
+                print(" [!] Load failed...")
+            sess.run(valid_it.initializer)
+            v_loss = 0.0
+            v_psnr = 0.0
+            v_ssim = 0.0
+            v_bic_psnr = 0.0
+            v_bic_ssim = 0.0
+            count = 0
+            f = open(FLAGS.sample_dir+"/result.txt","w")
+            try:
+                while True:
+                    start_time = time.time()
+                    loss, psnr, bic_psnr, ssim, bic_ssim, bic_x, x, y, pred = sess.run([valid_loss, valid_psnr, valid_bic_psnr, valid_ssim, valid_bic_ssim, valid_bicubic, valid_x, valid_y, valid_pred])
+                    if count< 10:
+                        save_image(FLAGS.sample_dir+"/LR_"+str(count)+".jpg", x[0])
+                        save_image(FLAGS.sample_dir+"/HR_"+str(count)+".jpg", y[0])
+                        save_image(FLAGS.sample_dir+"/bicubic_"+str(count)+".jpg", bic_x[0])
+                        save_image(FLAGS.sample_dir+"/pred_"+str(count)+".jpg", pred[0])
+                    v_loss += loss
+                    v_psnr += psnr
+                    v_ssim += ssim
+                    v_bic_psnr += bic_psnr
+                    v_bic_ssim += bic_ssim
+                    f.write("%dth img => time: [%4.4f], loss: [%.8f], psnr: [%.4f], bicubic_psnr: [%.4f], ssim: [%.4f], bicubic_ssim: [%.4f]\n"% ((count), time.time()-start_time, loss, psnr, bic_psnr, ssim, bic_ssim))
+                    count += 1
+            except tf.errors.OutOfRangeError:
+                pass
+            #v_loss /= count
+            f.write("Avg. Loss : %.8f, Avg. PSNR : %.4f, Avg. SSIM : %.4f, Avg. BICUBIC_PSNR : %.4f, Avg. BICUBIC_SSIM : %.4f"%(v_loss/count, v_psnr/count, v_ssim/count, v_bic_psnr/count, v_bic_ssim/count))
+            f.close()
 
 if __name__=='__main__':
     main()
