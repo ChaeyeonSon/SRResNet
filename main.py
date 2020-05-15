@@ -33,6 +33,8 @@ flags.DEFINE_string("valid_label_dir", '../valid_data/DIV2K_valid_HR/*.png', "Na
 flags.DEFINE_string("test_img_dir", "../test_data/DIV2K_valid_LR_bicubic/*.png", "Name of valid img directory [valid_img]")
 flags.DEFINE_string("test_label_dir", '../test_data/DIV2K_valid_HR/*.png', "Name of svalid label directory [valid_label]")
 
+flags.DEFINE_string("model_name", 'srresnet_reuse', "Name of Experiment")
+
 flags.DEFINE_boolean("is_train", True, "True for training, False for testing [True]")
 flags.DEFINE_string("device", "GPU", "Which device to use")
 flags.DEFINE_integer("device_num", 0, "Which device number to use")
@@ -100,11 +102,11 @@ def main():
 
         with tf.Session() as sess:
 
-            writer = tf.summary.FileWriter('./board/graph/srresnet_2', sess.graph)
+            writer = tf.summary.FileWriter('./board/graph/'+FLAGS.model_name, sess.graph)
             writer.add_graph(sess.graph)
 
             sess.run(tf.global_variables_initializer())
-            loaded, start_epoch = model.load(sess, saver, FLAGS.checkpoint_dir)
+            loaded, start_epoch = model.load(sess, saver, os.path.join(FLAGS.checkpoint_dir,FLAGS.model_name))
             if loaded:
                 print(" [*] Load SUCCESS")
             else:
@@ -146,7 +148,7 @@ def main():
                 v_loss /= count
                 v_psnr /= count
                 print("Epoch: [%2d], time: [%4.4f], train_loss: [%.8f], train_psnr: [%.4f], valid_loss: [%.8f], valid_psnr: [%.4f]"% ((epoch+1), time.time()-start_time, t_loss, t_psnr, v_loss, v_psnr))
-                model.save(sess, saver, FLAGS.checkpoint_dir, epoch)
+                model.save(sess, saver, os.path.join(FLAGS.checkpoint_dir,FLAGS.model_name), epoch)
                 
                 summary = sess.run(scalar_merged, feed_dict={train_loss_avg: t_loss, valid_loss_avg: v_loss, train_psnr_avg: t_psnr, valid_psnr_avg: v_psnr})
             
