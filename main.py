@@ -39,6 +39,8 @@ flags.DEFINE_boolean("is_train", True, "True for training, False for testing [Tr
 flags.DEFINE_string("device", "GPU", "Which device to use")
 flags.DEFINE_integer("device_num", 0, "Which device number to use")
 
+flags.DEFINE_boolean("placeholder", True, "True for using placeholder in data input")
+
 FLAGS = flags.FLAGS
 
 pp = pprint.PrettyPrinter()
@@ -66,7 +68,12 @@ def main():
         valid_it = valid_dataset.make_initializable_iterator()
         
         train_x, train_y = train_it.get_next()
-        valid_x, valid_y = valid_it.get_next()
+        if FLAGS.placeholder:
+            valid_data, valid_label = valid_it.get_next()
+            valid_x=tf.placeholder(tf.float32,[1,None,None,3])
+            valid_y=tf.placeholder(tf.float32,[1,None,None,3])
+        else:
+            valid_x, valid_y = valid_it.get_next()
 
         train_pred = model.forward(train_x, True)
         train_loss = model.loss_function(train_y, train_pred)
@@ -139,7 +146,10 @@ def main():
                     try:
                         # _ = sess.run(valid_x)
                         # v_loss = 0
-                        loss, psnr, valid_img_summary = sess.run([valid_loss, valid_psnr,valid_img_merged])
+                        if FLAGS.placeholder:
+                            loss, psnr, valid_img_summary = sess.run([valid_loss, valid_psnr,valid_img_merged], feed_dict={valid_x: valid_data, valid_y:valid_label})
+                        else:
+                            loss, psnr, valid_img_summary = sess.run([valid_loss, valid_psnr,valid_img_merged])
                         v_loss += loss
                         v_psnr += psnr
                         count += 1 
@@ -161,13 +171,13 @@ def main():
         valid_it = valid_dataset.make_initializable_iterator()
 
         valid_x, valid_y = valid_it.get_next()
-        valid_bicubic = bicubic_upsample_x2_tf(valid_x)
+        #valid_bicubic = bicubic_upsample_x2_tf(valid_x)
         valid_pred = model.forward(valid_x, False)
 
         valid_loss = model.loss_function(valid_y, valid_pred) 
-        valid_bic_psnr = compute_psnr_tf(valid_y, valid_bicubic)
+        #valid_bic_psnr = compute_psnr_tf(valid_y, valid_bicubic)
         valid_psnr = compute_psnr_tf(valid_y, valid_pred)
-        valid_bic_ssim = compute_ssim_tf(valid_y, valid_bicubic)
+        #valid_bic_ssim = compute_ssim_tf(valid_y, valid_bicubic)
         valid_ssim = compute_ssim_tf(valid_y, valid_pred)
 
         var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
@@ -189,7 +199,8 @@ def main():
             try:
                 while True:
                     start_time = time.time()
-                    loss, psnr, bic_psnr, ssim, bic_ssim, bic_x, x, y, pred = sess.run([valid_loss, valid_psnr, valid_bic_psnr, valid_ssim, valid_bic_ssim, valid_bicubic, valid_x, valid_y, valid_pred])
+                    loss, psnr, ssim, x, y, pred = sess.run([valid_loss, valid_psnr, valid_ssim, valid_x, valid_y, valid_pred])
+                    # loss, psnr, bic_psnr, ssim, bic_ssim, bic_x, x, y, pred = sess.run([valid_loss, valid_psnr, valid_bic_psnr, valid_ssim, valid_bic_ssim, valid_bicubic, valid_x, valid_y, valid_pred])
                     if count< 10:
                         save_image(FLAGS.sample_dir+"/LR_"+str(count)+".jpg", x[0])
                         save_image(FLAGS.sample_dir+"/HR_"+str(count)+".jpg", y[0])

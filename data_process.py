@@ -57,43 +57,14 @@ def random_crop_size96(images, labels):
   return randomCrop(images,labels,48,48)
 
 
-def make_dataset(img_file_path, label_file_path, train=True, batch_size=128):
+def make_dataset(img_file_path, label_file_path, train=True, batch_size=128, feed_dict=False):
   ds1 = tf.data.Dataset.list_files(img_file_path, shuffle=False)
   ds2 = tf.data.Dataset.list_files(label_file_path, shuffle=False)
   ds = tf.data.Dataset.zip((ds1, ds2))
-  #return ds.shuffle(800).map(process_path, num_parallel_calls=10).batch(batch_size).prefetch(buffer_size=10)
-  #return ds.shuffle(800).map(process_path, num_parallel_calls=10).map(random_crop_size64).batch(batch_size).prefetch(buffer_size=10)
-  
   if train:
-    train_labeled_ds = ds.shuffle(800).map(process_path, num_parallel_calls=10).map(random_crop_size64).batch(batch_size).prefetch(buffer_size=10)
+    train_labeled_ds = ds.shuffle(800).map(process_path, num_parallel_calls=tf.data.experimental.AUTOTUNE).map(random_crop_size64).batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
     return train_labeled_ds
 
   else:
-    valid_labeled_ds = ds.map(process_path, num_parallel_calls=10).batch(1).prefetch(buffer_size=10)
+    valid_labeled_ds = ds.map(process_path, num_parallel_calls=tf.data.experimental.AUTOTUNE).batch(1).prefetch(tf.data.experimental.AUTOTUNE)
     return valid_labeled_ds
-"""
-import matplotlib.pyplot as pp
-
-ds= make_dataset(train_img_data_dir,train_label_data_dir, batch_size=1)
-it = ds.make_initializable_iterator()
-n1, n2 = it.get_next()
-with tf.Session() as sess:
-  
-  for i in range(2):
-    sess.run(it.initializer)
-    while True:
-      try:
-        img1, img2 = sess.run([n1, n2])
-        #img1, img2 = sess.run([n1,n2])
-        
-        print("new")
-        pp.imshow((img1[0]+1)/2)
-        pp.show()
-        pp.imshow((img2[0]+1)/2)
-        pp.show()
-        pp.pause(0)
-        
-      except tf.errors.OutOfRangeError:
-        print("end")
-        break
-"""
