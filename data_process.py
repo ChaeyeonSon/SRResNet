@@ -15,22 +15,23 @@ valid_label_data_dir = '../DIV2K_valid_HR/*.png'
 #print(train_img_data_list)
 #print(train_label_data_list)
 
-def decode_img(img):
+def decode_img(img, neg):
   # convert the compressed string to a 3D uint8 tensor
   img = tf.image.decode_png(img, channels=3)
   # Use `convert_image_dtype` to convert to floats in the [0,1] range.
   img = tf.image.convert_image_dtype(img, tf.float32) 
   # convert range into [-1, 1]
-  img = img*2. - 1.
+  if neg:
+    img = img*2. - 1.
   return img
   
 def process_path(img_file_path, label_file_path):
   #img_file_path, label_file_path = file_path
   label = tf.io.read_file(label_file_path)
-  label = decode_img(label)
+  label = decode_img(label, neg=True)
   # load the raw data from the file as a string
   img = tf.io.read_file(img_file_path)
-  img = decode_img(img)
+  img = decode_img(img, False)
   return img, label
 import random
 def randomCrop(img, mask, width, height):
@@ -62,9 +63,13 @@ def make_dataset(img_file_path, label_file_path, train=True, batch_size=128, fee
   ds2 = tf.data.Dataset.list_files(label_file_path, shuffle=False)
   ds = tf.data.Dataset.zip((ds1, ds2))
   if train:
-    train_labeled_ds = ds.shuffle(800).map(process_path, num_parallel_calls=tf.data.experimental.AUTOTUNE).map(random_crop_size64).batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+    train_labeled_ds = ds.shuffle(800).map(process_path, num_parallel_calls=10).map(random_crop_size64).batch(batch_size).prefetch(10)
+
+#    train_labeled_ds = ds.shuffle(800).map(process_path, num_parallel_calls=tf.data.experimental.AUTOTUNE).map(random_crop_size64).batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
     return train_labeled_ds
 
   else:
-    valid_labeled_ds = ds.map(process_path, num_parallel_calls=tf.data.experimental.AUTOTUNE).batch(1).prefetch(tf.data.experimental.AUTOTUNE)
+    valid_labeled_ds = ds.map(process_path, num_parallel_calls=1).batch(1).prefetch(1)
+
+#    valid_labeled_ds = ds.map(process_path, num_parallel_calls=tf.data.experimental.AUTOTUNE).batch(1).prefetch(tf.data.experimental.AUTOTUNE)
     return valid_labeled_ds

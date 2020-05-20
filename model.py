@@ -15,7 +15,6 @@ class SRGenerator:
       self.num_blocks = num_blocks
       self.num_upsamples = num_upsamples
       self.use_gan = use_gan
-      # self.training = training
       self.reuse_vgg = False
       if content_loss not in ['mse', 'vgg22', 'vgg54']:
           print('Invalid content loss function. Must be \'mse\', \'vgg22\', or \'vgg54\'.')
@@ -24,7 +23,7 @@ class SRGenerator:
       #self.device = "/device:"+device+":"+str(device_num)
   
   def _residual_block(self, x, kernel_size, filters, strides=1, training=False):
-    x = tf.nn.relu(x)
+    #x = tf.nn.relu(x)
     skip = x
     x = tf.layers.conv2d(x, kernel_size=kernel_size, filters=filters, strides=strides, padding='same', use_bias=False)
     x = tf.layers.batch_normalization(x, training=training)
@@ -37,14 +36,16 @@ class SRGenerator:
   def _Upsample2xBlock(self, x, kernel_size, filters, strides=1):
     """Upsample 2x via SubpixelConv"""
     x = tf.layers.conv2d(x, kernel_size=kernel_size, filters=filters, strides=strides, padding='same', use_bias=False)
-    x = tf.nn.relu(x)
     x = tf.depth_to_space(x, 2)
+    x = tf.nn.relu(x)
     return x
 
   def forward(self, x, is_train):
     """Builds the forward pass network graph"""
-    with tf.variable_scope('generator', reuse=tf.AUTO_REUSE) as scope:
+#    with tf.variable_scope('generator', reuse=tf.AUTO_REUSE) as scope:
+    with tf.variable_scope('generator', reuse=not is_train) as scope:
       x = tf.layers.conv2d(x, kernel_size=9, filters=64, strides=1, padding='same')
+      x = tf.nn.relu(x)
       #x = tf.contrib.keras.layers.PReLU(shared_axes=[1,2])(x)
       skip = x
 
@@ -84,8 +85,8 @@ class SRGenerator:
 
   def save(self, sess, saver, checkpoint_dir, step):
     model_name = "SRResNet"
-    model_dir = "%s_%s" % ("srresnet", 2)
-    checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
+    #model_dir = "%s_%s" % ("srresnet", "valid20")
+    #checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
@@ -94,8 +95,8 @@ class SRGenerator:
 
   def load(self, sess, saver, checkpoint_dir):
     print(" [*] Reading checkpoints...")
-    model_dir = "%s_%s" % ("srresnet", 2)
-    checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
+    #model_dir = "%s_%s" % ("srresnet", "valid20")
+    #checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
     ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
     if ckpt and ckpt.model_checkpoint_path:

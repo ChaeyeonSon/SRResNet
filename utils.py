@@ -47,6 +47,9 @@ def compute_psnr_tf(ref,target):
 #    v = tf.shape(diff)[0] * tf.shape(diff)[1] * tf.shape(diff)[2] * tf.shape(diff)[3]
 #    mse = err / tf.cast(v, tf.float32)
 #    psnr = 20. * (tf.log(2. / mse) / tf.log(10.))
+
+#    psnr = tf.image.psnr(ref[0],target[0],max_val=2.0)
+
     psnr = tf.image.psnr(ref[0],target[0],max_val=2.0)
     return psnr
 
@@ -65,7 +68,8 @@ def compute_ssim_np(img1, img2, cs_map=False):
     window = gauss.fspecial_gauss(size, sigma)
     K1 = 0.01
     K2 = 0.03
-    L = 255 #bitdepth of image
+    L = 2.0
+#    L = 255 #bitdepth of image
     C1 = (K1*L)**2
     C2 = (K2*L)**2
     mu1 = signal.fftconvolve(window, img1, mode='valid')
@@ -86,4 +90,6 @@ def compute_ssim_np(img1, img2, cs_map=False):
 
 
 def compute_ssim_tf(img1, img2):
+    #return tf.image.ssim(img1,img2, max_val=2.0)
     return tf.image.ssim(img1,img2, max_val=2.0)
+

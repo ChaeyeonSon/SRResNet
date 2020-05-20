@@ -5,9 +5,11 @@ from data_process import *
 from model import *
 
 import os
+import glob
 import pprint
 from tqdm import tqdm
 import time
+import cv2
 
 import utils
 
@@ -33,13 +35,13 @@ flags.DEFINE_string("valid_label_dir", '../valid_data/DIV2K_valid_HR/*.png', "Na
 flags.DEFINE_string("test_img_dir", "../test_data/DIV2K_valid_LR_bicubic/*.png", "Name of valid img directory [valid_img]")
 flags.DEFINE_string("test_label_dir", '../test_data/DIV2K_valid_HR/*.png', "Name of svalid label directory [valid_label]")
 
-flags.DEFINE_string("model_name", 'srresnet_reuse', "Name of Experiment")
+flags.DEFINE_string("model_name", 'srresnet_net_changed', "Name of Experiment")
 
 flags.DEFINE_boolean("is_train", True, "True for training, False for testing [True]")
 flags.DEFINE_string("device", "GPU", "Which device to use")
 flags.DEFINE_integer("device_num", 0, "Which device number to use")
 
-flags.DEFINE_boolean("placeholder", True, "True for using placeholder in data input")
+flags.DEFINE_boolean("placeholder", False, "True for using placeholder in data input")
 
 FLAGS = flags.FLAGS
 
@@ -63,16 +65,15 @@ def main():
     if FLAGS.is_train:
         train_dataset = make_dataset(FLAGS.train_img_dir, FLAGS.train_label_dir, train=True,batch_size=FLAGS.batch_size)
         train_it = train_dataset.make_initializable_iterator()
-
-        valid_dataset = make_dataset(FLAGS.valid_img_dir, FLAGS.valid_label_dir, train=False, batch_size=1) 
-        valid_it = valid_dataset.make_initializable_iterator()
-        
         train_x, train_y = train_it.get_next()
         if FLAGS.placeholder:
-            valid_data, valid_label = valid_it.get_next()
+            valid_data= np.array([np.array(cv2.cvtColor(cv2.imread(fname),cv2.COLOR_BGR2RGB)/255.0*2.0-1.0) for fname in glob.glob(FLAGS.valid_img_dir)], dtype=np.object)
+            valid_label = np.array([(np.array(cv2.cvtColor(cv2.imread(fname),cv2.COLOR_BGR2RGB))/255.0*2.0-1.0) for fname in glob.glob(FLAGS.valid_label_dir)], dtype=np.object)
             valid_x=tf.placeholder(tf.float32,[1,None,None,3])
             valid_y=tf.placeholder(tf.float32,[1,None,None,3])
         else:
+            valid_dataset = make_dataset(FLAGS.valid_img_dir, FLAGS.valid_label_dir, train=False, batch_size=1) 
+            valid_it = valid_dataset.make_initializable_iterator()
             valid_x, valid_y = valid_it.get_next()
 
         train_pred = model.forward(train_x, True)
@@ -138,23 +139,28 @@ def main():
                 t_loss /= count
                 t_psnr /= count
 
-                sess.run(valid_it.initializer)
                 v_loss = 0.0
                 v_psnr = 0.0
-                count = 0
-                while True:
-                    try:
-                        # _ = sess.run(valid_x)
-                        # v_loss = 0
-                        if FLAGS.placeholder:
-                            loss, psnr, valid_img_summary = sess.run([valid_loss, valid_psnr,valid_img_merged], feed_dict={valid_x: valid_data, valid_y:valid_label})
-                        else:
-                            loss, psnr, valid_img_summary = sess.run([valid_loss, valid_psnr,valid_img_merged])
+
+                if FLAGS.placeholder:
+                    for vd, vl in zip(valid_data,valid_label):
+                        loss, psnr, valid_img_summary = sess.run([valid_loss, valid_psnr,valid_img_merged], feed_dict={valid_x: vd[np.newaxis,:], valid_y:vl[np.newaxis,:]})
                         v_loss += loss
                         v_psnr += psnr
-                        count += 1 
-                    except tf.errors.OutOfRangeError:
-                        break
+                    count = len(valid_data)
+                else:
+                    sess.run(valid_it.initializer)
+                    count = 0
+                    while True:
+                        try:
+                        # _ = sess.run(valid_x)
+                        # v_loss = 0
+                            loss, psnr, valid_img_summary = sess.run([valid_loss, valid_psnr,valid_img_merged])
+                            v_loss += loss
+                            v_psnr += psnr
+                            count += 1 
+                        except tf.errors.OutOfRangeError:
+                            break
                 v_loss /= count
                 v_psnr /= count
                 print("Epoch: [%2d], time: [%4.4f], train_loss: [%.8f], train_psnr: [%.4f], valid_loss: [%.8f], valid_psnr: [%.4f]"% ((epoch+1), time.time()-start_time, t_loss, t_psnr, v_loss, v_psnr))
