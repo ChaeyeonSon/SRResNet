@@ -31,7 +31,7 @@ def process_path(img_file_path, label_file_path):
   label = decode_img(label, neg=True)
   # load the raw data from the file as a string
   img = tf.io.read_file(img_file_path)
-  img = decode_img(img, False)
+  img = decode_img(img, True)
   return img, label
 import random
 def randomCrop(img, mask, width, height):

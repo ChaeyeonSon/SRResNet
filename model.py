@@ -40,10 +40,10 @@ class SRGenerator:
     x = tf.nn.relu(x)
     return x
 
-  def forward(self, x, is_train):
+  def forward(self, x, is_train, reuse):
     """Builds the forward pass network graph"""
 #    with tf.variable_scope('generator', reuse=tf.AUTO_REUSE) as scope:
-    with tf.variable_scope('generator', reuse=not is_train) as scope:
+    with tf.variable_scope('generator', reuse=reuse) as scope:
       x = tf.layers.conv2d(x, kernel_size=9, filters=64, strides=1, padding='same')
       x = tf.nn.relu(x)
       #x = tf.contrib.keras.layers.PReLU(shared_axes=[1,2])(x)
@@ -99,6 +99,7 @@ class SRGenerator:
     #checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
     ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
+    
     if ckpt and ckpt.model_checkpoint_path:
         ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
         print("Restored %s "%ckpt_name)

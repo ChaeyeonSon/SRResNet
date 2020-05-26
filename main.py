@@ -35,7 +35,7 @@ flags.DEFINE_string("valid_label_dir", '../valid_data/DIV2K_valid_HR/*.png', "Na
 flags.DEFINE_string("test_img_dir", "../test_data/DIV2K_valid_LR_bicubic/*.png", "Name of valid img directory [valid_img]")
 flags.DEFINE_string("test_label_dir", '../test_data/DIV2K_valid_HR/*.png', "Name of svalid label directory [valid_label]")
 
-flags.DEFINE_string("model_name", 'srresnet_net_changed', "Name of Experiment")
+flags.DEFINE_string("model_name", 'srresnet_net_changed_scaling2_v2', "Name of Experiment")
 
 flags.DEFINE_boolean("is_train", True, "True for training, False for testing [True]")
 flags.DEFINE_string("device", "GPU", "Which device to use")
@@ -76,12 +76,12 @@ def main():
             valid_it = valid_dataset.make_initializable_iterator()
             valid_x, valid_y = valid_it.get_next()
 
-        train_pred = model.forward(train_x, True)
+        train_pred = model.forward(train_x, True, reuse=False)
         train_loss = model.loss_function(train_y, train_pred)
         train_psnr = utils.compute_psnr_tf(train_pred, train_y)
         train_op = model.optimize(train_loss)
 
-        valid_pred = model.forward(valid_x, False)
+        valid_pred = model.forward(valid_x, False, reuse=True)
         valid_loss = model.loss_function(valid_y, valid_pred) 
         valid_psnr = utils.compute_psnr_tf(valid_pred, valid_y)
         var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
@@ -178,7 +178,7 @@ def main():
 
         valid_x, valid_y = valid_it.get_next()
         #valid_bicubic = bicubic_upsample_x2_tf(valid_x)
-        valid_pred = model.forward(valid_x, False)
+        valid_pred = model.forward(valid_x, is_train=False,reuse=tf.AUTO_REUSE)
 
         valid_loss = model.loss_function(valid_y, valid_pred) 
         #valid_bic_psnr = compute_psnr_tf(valid_y, valid_bicubic)
@@ -189,7 +189,7 @@ def main():
         var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='generator')
         saver = tf.train.Saver(var_list)
         with tf.Session() as sess:
-            loaded, _ = model.load(sess, saver, FLAGS.checkpoint_dir)
+            loaded, _ = model.load(sess, saver, os.path.join(FLAGS.checkpoint_dir,FLAGS.model_name))
             if loaded:
                 print(" [*] Load SUCCESS")
             else:
@@ -206,11 +206,15 @@ def main():
                 while True:
                     start_time = time.time()
                     loss, psnr, ssim, x, y, pred = sess.run([valid_loss, valid_psnr, valid_ssim, valid_x, valid_y, valid_pred])
+                    bic_x = bicubic_upsample_x2_np(x[0])
+                    bic_psnr = compute_psnr_np(y[0], bic_x)
+                    bic_ssim = compute_ssim_np(y[0], bic_x)
                     # loss, psnr, bic_psnr, ssim, bic_ssim, bic_x, x, y, pred = sess.run([valid_loss, valid_psnr, valid_bic_psnr, valid_ssim, valid_bic_ssim, valid_bicubic, valid_x, valid_y, valid_pred])
                     if count< 10:
                         save_image(FLAGS.sample_dir+"/LR_"+str(count)+".jpg", x[0])
                         save_image(FLAGS.sample_dir+"/HR_"+str(count)+".jpg", y[0])
-                        save_image(FLAGS.sample_dir+"/bicubic_"+str(count)+".jpg", bic_x[0])
+                        save_image(FLAGS.sample_dir+"/bicubic_"+str(count)+".jpg", bic_x)
+                        #save_image(FLAGS.sample_dir+"/bicubic_"+str(count)+".jpg", bic_x[0])
                         save_image(FLAGS.sample_dir+"/pred_"+str(count)+".jpg", pred[0])
                     v_loss += loss
                     v_psnr += psnr

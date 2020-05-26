@@ -53,6 +53,8 @@ def compute_psnr_tf(ref,target):
     psnr = tf.image.psnr(ref[0],target[0],max_val=2.0)
     return psnr
 
+from skimage.measure import compare_ssim as ssim
+
 def compute_ssim_np(img1, img2, cs_map=False):
     """Return the Structural Similarity Map corresponding to input images img1 
     and img2 (images are assumed to be uint8)
@@ -60,6 +62,7 @@ def compute_ssim_np(img1, img2, cs_map=False):
     This function attempts to mimic precisely the functionality of ssim.m a 
     MATLAB provided by the author's of SSIM
     https://ece.uwaterloo.ca/~z70wang/research/ssim/ssim_index.m
+    """
     """
     img1 = img1.astype(np.float64)
     img2 = img2.astype(np.float64)
@@ -87,6 +90,8 @@ def compute_ssim_np(img1, img2, cs_map=False):
     else:
         return ((2*mu1_mu2 + C1)*(2*sigma12 + C2))/((mu1_sq + mu2_sq + C1)*
                     (sigma1_sq + sigma2_sq + C2))
+    """
+    return ssim(img1, img2, data_range=2.0,multichannel=True)
 
 
 def compute_ssim_tf(img1, img2):
