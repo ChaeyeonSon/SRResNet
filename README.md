@@ -3,6 +3,12 @@ SRResNet 변형 구조 구현
 
 ![image](https://user-images.githubusercontent.com/55138488/86691709-099fd400-c044-11ea-97e9-fa8d8bd819a4.png)
 
+Dataset : DIV2K 데이터
+- LR: bicubic downsampling x2
+- Train data: 2K 해상도 데이터 800 장
+- Validation data: 2K 해상도 데이터 100 장
+
+
 Architecture
  - All conv filters are of size 3x3 (stride 1)
  - All output channels 64 unless specified below the layer
