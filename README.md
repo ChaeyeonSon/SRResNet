@@ -63,6 +63,6 @@ Avg. Loss : 0.00063688, Avg. PSNR : 34.2719, Avg. SSIM : 0.9311, Avg. BICUBIC_PS
  <img src="https://user-images.githubusercontent.com/55138488/87025303-2c351700-c215-11ea-9451-98bc65ed0eef.png" width="30%"> <img src="https://user-images.githubusercontent.com/55138488/87025434-5dade280-c215-11ea-94e4-2afad3d8eb82.png" width="30%">  
    - GAN 없이 vgg loss만 content loss 로 사용하는 것은 무리였다.  
    - mse 와 같이 사용해보면 또 어떨까? 의미가 없을까?  
-   - 사진을 보면 약간 checkboard가 나타나지만 그냥 큰 사진으로보면 육안으로는 생각보다 우수하다.  
+   - 사진을 더 확대해 보면 약간 줄무늬가 나타나지만 그냥 큰 사진으로보면 육안으로는 생각보다 우수하다.  
    - 하지만 수치면에서 다른 모델들보다 결과가 매우 열악한 것이 눈에 띈다.
  
