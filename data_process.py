@@ -28,23 +28,28 @@ def decode_img(img, neg):
 def process_path(img_file_path, label_file_path):
   #img_file_path, label_file_path = file_path
   label = tf.io.read_file(label_file_path)
-  label = decode_img(label, neg=True)
+  label = decode_img(label, neg=False)
   # load the raw data from the file as a string
   img = tf.io.read_file(img_file_path)
-  img = decode_img(img, True)
+  img = decode_img(img, False)
   return img, label
 import random
-def randomCrop(img, mask, width, height):
+def randomCrop(img, mask, width, height,bicubic_upsampled=False):
     #assert img.shape[0] >= height
     #assert img.shape[1] >= width
     #assert img.shape[0]*2 == mask.shape[0]
     #assert img.shape[1]*2 == mask.shape[1]
-    x=tf.random.uniform([], minval = 0, maxval=tf.shape(img)[1] - width, dtype=tf.int32)
-    y=tf.random.uniform([], minval = 0, maxval=tf.shape(img)[0] - height, dtype=tf.int32)
-#    x = random.randint(0, img.shape[1] - width)
-#    y = random.randint(0, img.shape[0] - height)
-    img = tf.image.crop_to_bounding_box(img,y, x,height,width)
-    mask = tf.image.crop_to_bounding_box(mask,y*2, x*2, height*2, width*2)
+    
+    if bicubic_upsampled:  
+        x=tf.random.uniform([], minval = 0, maxval=tf.shape(img)[1] - width*2, dtype=tf.int32)
+        y=tf.random.uniform([], minval = 0, maxval=tf.shape(img)[0] - height*2, dtype=tf.int32)
+        img = tf.image.crop_to_bounding_box(img,y, x, height*2, width*2)              
+        mask = tf.image.crop_to_bounding_box(mask,y, x, height*2, width*2)
+    else:
+        x=tf.random.uniform([], minval = 0, maxval=tf.shape(img)[1] - width, dtype=tf.int32)    
+        y=tf.random.uniform([], minval = 0, maxval=tf.shape(img)[0] - height, dtype=tf.int32)
+        img = tf.image.crop_to_bounding_box(img,y, x,height,width)
+        mask = tf.image.crop_to_bounding_box(mask,y*2, x*2, height*2, width*2)
     return img, mask
 
 def random_crop_size64(images, labels):
